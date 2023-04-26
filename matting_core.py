@@ -54,6 +54,9 @@ def calculate_matte(file_name:str, trimap: np.array, guidance: np.array, radius:
     trimap = trimap / 255
     guidance = guidance / 255
 
+    # emprically calibrated
+    radius = min(radius, 5)
+
     alpha = estimate_alpha_knn(
     guidance,
     trimap,
@@ -67,16 +70,18 @@ def calculate_matte(file_name:str, trimap: np.array, guidance: np.array, radius:
 
     return alpha * 255.0
 
+names = ["toy", "person1"]
 
-mask_path = "./imgs/person1_mask.png"
-guidance_path = "./imgs/person1.png"
+for file_name in names:
+    mask_path = "./imgs/{}_mask.png".format(file_name)
+    guidance_path = "./imgs/{}.png".format(file_name)
 
-mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
-guidance = cv2.imread(guidance_path, cv2.IMREAD_COLOR)
+    mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+    guidance = cv2.imread(guidance_path, cv2.IMREAD_COLOR)
 
-print(guidance.shape)
+    print(mask.shape)
 
-trimap = trimap_from_mask("person1", mask, guidance, radius=10)
-alpha_matte = calculate_matte("person1", trimap, guidance, radius=6)
+    trimap = trimap_from_mask(file_name, mask, guidance, radius=10)
+    alpha_matte = calculate_matte(file_name, trimap, guidance, radius=6)
 
-cv2.imwrite("./res/{}_alpha_knn.png".format("person1"), alpha_matte)
+    cv2.imwrite("./res/{}_alpha_knn.png".format(file_name), alpha_matte)
