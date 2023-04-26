@@ -8,14 +8,13 @@ def trimap_from_mask(file_name:str, mask: np.array, guidance: np.array, epsilon:
 
     # apply guided filter
     start_time = time.time()
+
     gf = cv2.ximgproc.guidedFilter(guidance, mask, radius=radius, eps=epsilon)
     end_time = time.time()
     latency = end_time - start_time
     print("GF Latency: {:.6f} seconds".format(latency))
     cv2.imwrite("./res/{}_gf.png".format(file_name), gf)
 
-    # binarize mask
-    mask = np.where(mask >= 127, 255.0, 0.0)
 
     """
     make trimap
@@ -23,13 +22,15 @@ def trimap_from_mask(file_name:str, mask: np.array, guidance: np.array, epsilon:
     start_time = time.time()
 
     diff = np.abs(gf - mask)
-    diff_binarized = np.where(diff > 50, 255, 0).astype(np.uint8)
+    # 10 is emprically calibrated
+    diff_binarized = np.where(diff > 10, 255, 0).astype(np.uint8)
 
     # dilation
-    d_radius = max(int(radius / 8), 3)
+    d_radius = max(int(radius / 8), 3) # emprically calibrated
     kernel = np.ones((d_radius,d_radius), np.uint8)
     dilated_image = cv2.dilate(diff_binarized, kernel, iterations=1)
 
+    # mark unsure pixels as 128
     unsure = np.where(dilated_image > 50)
     mask[unsure] = 128
 
@@ -50,32 +51,32 @@ def trimap_from_mask(file_name:str, mask: np.array, guidance: np.array, epsilon:
 def calculate_matte(file_name:str, trimap: np.array, guidance: np.array, radius: int=6):
     start_time = time.time()
 
-    trimap /= 255.0
-    guidance /= 255.0
+    trimap = trimap / 255
+    guidance = guidance / 255
 
     alpha = estimate_alpha_knn(
     guidance,
-    trimap[:,:,0],
+    trimap,
     laplacian_kwargs={"n_neighbors": [radius, radius+5],},
     cg_kwargs={"maxiter":2000})
-
 
 
     end_time = time.time()
     latency = end_time - start_time
     print("Matting Latency: {:.6f} seconds".format(latency))
 
-    return alpha*255.0
+    return alpha * 255.0
 
 
 mask_path = "./imgs/person1_mask.png"
 guidance_path = "./imgs/person1.png"
 
-mask = cv2.imread(mask_path, -1).astype(np.float32)#[:,:,0]
-guidance = cv2.imread(guidance_path, -1).astype(np.float32)[:,:,:-1]
+mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+guidance = cv2.imread(guidance_path, cv2.IMREAD_COLOR)
 
-trimap = trimap_from_mask("person1", mask, guidance, )
-print(trimap.shape, np.mean(trimap), guidance.shape, np.mean(guidance))
+print(guidance.shape)
+
+trimap = trimap_from_mask("person1", mask, guidance, radius=10)
 alpha_matte = calculate_matte("person1", trimap, guidance, radius=6)
 
 cv2.imwrite("./res/{}_alpha_knn.png".format("person1"), alpha_matte)
