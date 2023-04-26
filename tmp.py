@@ -49,18 +49,38 @@ perform matting
 """
 from pymatting import *
 
+mask_path = "/home/luoleyouluole/matting/imgs/GT04_trimap.png"
+img_path = "/home/luoleyouluole/matting/imgs/GT04.png"
+
+start_time = time.time()
+
+mask = cv2.imread(mask_path, -1).astype(np.float64)[:,:,0]
+
+guidance = cv2.imread(img_path, -1).astype(np.float64)#[:,:,:-1]
+
+print(mask.shape, guidance.shape)
+
+mask /= 255.0
+guidance /= 255.0
+
+# alpha = estimate_alpha_cf(
+# guidance,
+# mask,
+# laplacian_kwargs={"epsilon": 1e-8},
+# cg_kwargs={"maxiter":1000})
+
 alpha = estimate_alpha_knn(
 guidance,
 mask,
-laplacian_kwargs={"n_neighbors": [15, 10]},
+laplacian_kwargs={"n_neighbors": [5, 10],},
 cg_kwargs={"maxiter":2000})
 
-end_time = time.time()
-# Calculate the latency
-latency = end_time - start_time
-print("Latency: {:.6f} seconds".format(latency))
+# end_time = time.time()
+# # Calculate the latency
+# latency = end_time - start_time
+# print("Latency: {:.6f} seconds".format(latency))
 
-cv2.imwrite("./alpha_knn.png", alpha*255) # --> 3 seconds
+# cv2.imwrite("./alpha_knn.png", alpha*255) # --> 3 seconds
 
 
 # alpha = estimate_alpha_lbdm(
@@ -101,3 +121,10 @@ cv2.imwrite("./alpha_knn.png", alpha*255) # --> 3 seconds
 # print("Latency: {:.6f} seconds".format(latency))
 
 # cv2.imwrite("./alpha_rw.png", alpha*255)
+
+end_time = time.time()
+# Calculate the latency
+latency = end_time - start_time
+print("Latency: {:.6f} seconds".format(latency))
+
+cv2.imwrite("./alpha_knn.png", alpha*255) # --> 3 seconds
