@@ -3,33 +3,32 @@ import cv2
 import time
 
 mask_path = "./imgs/person1_mask.png"
-img_path = "./imgs/person1.png"
+guidance_path = "./imgs/person1.png"
+
+mask = cv2.imread(mask_path, -1).astype(np.float32)[:,:,0]
+guidance = cv2.imread(guidance_path, -1).astype(np.float32)[:,:,:-1]
 
 
-def core_matting(mask_path, guidance_path, epsilon=1e-4, radius=6, scale_factor=1.0, is_mask_rgb=False, is_guidance_rgb=True, output_image_path=None):
+def core_matting(file_name:str, mask: np.array, guidance: np.array, epsilon: float=1e-4, radius: int =6, scale_factor: float=1.0, is_mask_rgb: bool=False, is_guidance_rgb: bool=True) -> np.array:
 
-
-    mask = cv2.imread(mask_path, -1).astype(np.float32)[:,:,0]
-    guidance = cv2.imread(guidance_path, -1).astype(np.float32)[:,:,:-1]
-
+    # apply guided filter
     start_time = time.time()
-    filtered_image = cv2.ximgproc.guidedFilter(guidance, mask, radius=radius, eps=epsilon)
-    cv2.imwrite("./res_gf.png", filtered_image)
-
-
+    gf = cv2.ximgproc.guidedFilter(guidance, mask, radius=radius, eps=epsilon)
+    end_time = time.time()
+    latency = end_time - start_time
+    print("GF Latency: {:.6f} seconds".format(latency))
+    cv2.imwrite("./res/{}_gf.png".format(file_name), gf)
 
     # binarize mask
     mask = np.where(mask >= 127, 255.0, 0.0)
 
-
-
     """
     make trimap
     """
-    diff = np.abs(filtered_image - mask)
-    # cv2.imwrite("./res_diff.png", diff)
-    diff = np.where(diff > 50, 255, 0).astype(np.uint8)
-    # cv2.imwrite("./res_diff_filter.png", diff)
+    start_time = time.time()
+
+    diff = np.abs(gf - mask)
+    diff_binarized = np.where(diff > 50, 255, 0).astype(np.uint8)
 
     # dilation
     d_radius = max(int(radius / 8), 3)
@@ -43,6 +42,16 @@ def core_matting(mask_path, guidance_path, epsilon=1e-4, radius=6, scale_factor=
 
     mask /= 255.0
     guidance /= 255.0
+
+    end_time = time.time()
+    latency = end_time - start_time
+    print("GF Latency: {:.6f} seconds".format(latency))
+
+    cv2.imwrite("./res/{}_diff.png".format(file_name), diff)
+    cv2.imwrite("./res/{}_diff_binarized.png".format(file_name), diff_binarized)
+
+
+def calculate_matte(file_name:str, trimap: np.array, guidance: np.array, epsilon: float=1e-4, radius: int=6):
 
     """
     perform matting
