@@ -70,7 +70,8 @@ def calculate_matte(file_name:str, trimap: np.array, guidance: np.array, radius:
 
     return alpha * 255.0
 
-names = ["toy", "person1"]
+names = ["toy", "person1",]
+# names = ["toy", "person1", "dance1", "dance2", "dance3", "dance4", "dance5", "dance6", "dance7", "dance8", "dance9"]
 
 for file_name in names:
     mask_path = "./imgs/{}_mask.png".format(file_name)
@@ -79,9 +80,24 @@ for file_name in names:
     mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
     guidance = cv2.imread(guidance_path, cv2.IMREAD_COLOR)
 
+    if mask.shape[0] >= 512 or mask.shape[1] >= 512:
+        scale_factor = 0.5
+
     print(mask.shape)
 
-    trimap = trimap_from_mask(file_name, mask, guidance, radius=10)
+    if scale_factor < 1:
+        new_wdith = int(mask.shape[0] * scale_factor)
+        new_height = int(mask.shape[1] * scale_factor)
+        mask = cv2.resize(mask, (new_wdith, new_height), interpolation=cv2.INTER_CUBIC)
+        guidance = cv2.resize(guidance, (new_wdith, new_height), interpolation=cv2.INTER_CUBIC)
+
+
+    trimap = trimap_from_mask(file_name, mask, guidance, radius=6)
     alpha_matte = calculate_matte(file_name, trimap, guidance, radius=6)
+
+    if scale_factor < 1:
+        new_wdith = int(alpha_matte.shape[0] / scale_factor)
+        new_height = int(alpha_matte.shape[1] / scale_factor)
+        alpha_matte = cv2.resize(alpha_matte, (new_wdith, new_height), interpolation=cv2.INTER_CUBIC)
 
     cv2.imwrite("./res/{}_alpha_knn.png".format(file_name), alpha_matte)
